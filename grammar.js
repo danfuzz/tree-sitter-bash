@@ -68,6 +68,7 @@ module.exports = grammar({
     $._special_variable_name,
     $._c_word,
     $._statement_not_subshell,
+    $._redirect // Any redirect other than a heredoc.
   ],
 
   externals: $ => [
@@ -184,7 +185,7 @@ module.exports = grammar({
         field('body', $._statement),
         field('redirect', choice(
           repeat1(choice(
-            $.file_redirect,
+            $._redirect,
             $.heredoc_redirect,
           )),
         )),
@@ -193,8 +194,7 @@ module.exports = grammar({
         field('body', choice($.if_statement, $.while_statement)),
         $.herestring_redirect,
       ),
-      field('redirect', repeat1($.file_redirect)),
-      $.herestring_redirect,
+      field('redirect', repeat1($._redirect)),
     ))),
 
     for_statement: $ => seq(
@@ -381,7 +381,7 @@ module.exports = grammar({
           $.subshell,
           $.test_command),
       ),
-      field('redirect', optional($.file_redirect)),
+      field('redirect', optional($._redirect)),
     )),
 
     compound_statement: $ => seq(
@@ -450,7 +450,7 @@ module.exports = grammar({
     command: $ => prec.left(seq(
       repeat(choice(
         $.variable_assignment,
-        field('redirect', choice($.file_redirect, $.herestring_redirect)),
+        field('redirect', $._redirect),
       )),
       field('name', $.command_name),
       choice(
@@ -497,6 +497,8 @@ module.exports = grammar({
       optional($._concat),
     ),
 
+    _redirect: $ => choice($.file_redirect, $.herestring_redirect),
+
     file_redirect: $ => prec.left(seq(
       field('descriptor', optional($.file_descriptor)),
       choice(
@@ -518,7 +520,7 @@ module.exports = grammar({
       optional(choice(
         alias($._heredoc_pipeline, $.pipeline),
         seq(
-          field('redirect', repeat1($.file_redirect)),
+          field('redirect', repeat1($._redirect)),
           optional($._heredoc_expression),
         ),
         $._heredoc_expression,
@@ -1040,7 +1042,7 @@ module.exports = grammar({
 
     command_substitution: $ => choice(
       seq('$(', $._statements, ')'),
-      seq('$(', field('redirect', $.file_redirect), ')'),
+      seq('$(', field('redirect', $._redirect), ')'),
       prec(1, seq('`', $._statements, '`')),
       seq('$`', $._statements, '`'),
     ),
